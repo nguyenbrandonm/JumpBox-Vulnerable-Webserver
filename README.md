@@ -29,6 +29,43 @@ Once compromised, the server represents an attacker-controlled **jump box** with
 
 ---
 
+## Application Components & Screenshots
+
+The following screenshots illustrate each major component of the JumpBox application.
+
+### 🧭 Dashboard – JumpBox Control Panel
+
+The main landing page that simulates an external-facing jump box.  
+Includes navigation tabs and a terminal-style interface with limited command handling and easter eggs.
+
+![Dashboard](assets/screenshots/Index.png)
+
+---
+
+### 📤 File Upload Endpoint
+
+An intentionally vulnerable file upload interface that allows **arbitrary file types**, including server-side scripts, to be uploaded without validation.
+
+![Upload](assets/screenshots/Uploads.png)
+
+---
+
+### 📂 File Viewer Endpoint
+
+An insecure file viewing interface that exposes sensitive files and allows **directory traversal** through user-controlled input.
+
+![File Viewer](assets/screenshots/Viewer.png)
+
+---
+
+### 🌐 Network Ping Utility
+
+A network diagnostic endpoint vulnerable to **command injection**, allowing user input to be passed directly to a system command.
+
+![Ping Utility](assets/screenshots/Ping.png)
+
+---
+
 ## Repository Usage
 
 This repository contains **only the web application files**.  

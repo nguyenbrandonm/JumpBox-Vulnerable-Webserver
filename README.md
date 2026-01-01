@@ -41,5 +41,5 @@ It assumes:
 To use the project:
 
 ```bash
-git clone https://github.com/nguyenbrandonm/jumpbox.git
-cd jumpbox
+git clone https://github.com/nguyenbrandonm/Vulnerable-Webserver.git
+cd Vulnerable-Webserver

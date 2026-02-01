@@ -1,7 +1,44 @@
-# upload.php page (Insecure File Uploads)
 <?php
 session_start();
-$currentPage = basename($_SERVER['PHP_SELF']);
+
+$requestPath = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?? '/';
+$path = '/' . trim($requestPath, '/');
+
+function is_active(string $section, string $path): bool {
+    if ($section === 'dashboard') {
+        return $path === '/' || $path === '';
+    }
+    return str_starts_with($path . '/', '/' . $section . '/');
+}
+
+// Upload storage directory (filesystem path)
+// This stores uploaded files directly in the /uploads folder (same folder as this script).
+$uploadDirFs = __DIR__ . '/';
+$uploadDirUrl = '/uploads/';
+
+$message = null;
+
+if (isset($_POST['submit'])) {
+    if (!isset($_FILES['fileToUpload']) || $_FILES['fileToUpload']['error'] !== UPLOAD_ERR_OK) {
+        $message = "Error uploading file.";
+    } else {
+        $filename = basename($_FILES["fileToUpload"]["name"]);
+        $targetFs = $uploadDirFs . $filename;
+
+        // Keep your original size check
+        if ($_FILES["fileToUpload"]["size"] > 500000) {
+            $message = "Sorry, your file is too large.";
+        } else {
+            // Intentionally insecure: no filetype validation.
+            if (move_uploaded_file($_FILES["fileToUpload"]["tmp_name"], $targetFs)) {
+                // Helpful output for the lab (shows where it landed)
+                $message = "File uploaded successfully: " . htmlspecialchars($uploadDirUrl . $filename);
+            } else {
+                $message = "Error uploading file.";
+            }
+        }
+    }
+}
 ?>
 
 <!DOCTYPE html>
@@ -120,6 +157,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
             border-radius: 10px;
             margin-top: 25px;
             border: 1px solid rgba(0, 255, 0, 0.25);
+            word-break: break-word;
         }
 
         footer {
@@ -143,10 +181,10 @@ $currentPage = basename($_SERVER['PHP_SELF']);
 </header>
 
 <nav class="nav">
-    <a href="index.php"  class="<?= $currentPage === 'index.php'  ? 'active' : '' ?>">Dashboard</a>
-    <a href="upload.php" class="<?= $currentPage === 'upload.php' ? 'active' : '' ?>">Upload</a>
-    <a href="viewer.php" class="<?= $currentPage === 'viewer.php' ? 'active' : '' ?>">Files</a>
-    <a href="ping.php"   class="<?= $currentPage === 'ping.php'   ? 'active' : '' ?>">Ping</a>
+    <a href="/" class="<?= is_active('dashboard', $path) ? 'active' : '' ?>">Dashboard</a>
+    <a href="/uploads/" class="<?= is_active('uploads', $path) ? 'active' : '' ?>">Upload</a>
+    <a href="/dir/" class="<?= is_active('dir', $path) ? 'active' : '' ?>">Files</a>
+    <a href="/ping/" class="<?= is_active('ping', $path) ? 'active' : '' ?>">Ping</a>
 </nav>
 
 <div class="container">
@@ -160,24 +198,9 @@ $currentPage = basename($_SERVER['PHP_SELF']);
         </div>
     </form>
 
-    <?php
-    if (isset($_POST['submit'])) {
-        $targetDir = "uploads/";
-        $targetFile = $targetDir . basename($_FILES["fileToUpload"]["name"]);
-        $uploadOk = 1;
-
-        if ($_FILES["fileToUpload"]["size"] > 500000) {
-            echo '<div class="output">Sorry, your file is too large.</div>';
-            $uploadOk = 0;
-        }
-
-        if ($uploadOk && move_uploaded_file($_FILES["fileToUpload"]["tmp_name"], $targetFile)) {
-            echo '<div class="output">File uploaded successfully.</div>';
-        } elseif ($uploadOk) {
-            echo '<div class="output">Error uploading file.</div>';
-        }
-    }
-    ?>
+    <?php if ($message !== null): ?>
+        <div class="output"><?= htmlspecialchars($message) ?></div>
+    <?php endif; ?>
 </div>
 
 <footer>

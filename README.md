@@ -46,7 +46,7 @@ git clone https://github.com/nguyenbrandonm/JumpBox-Vulnerable-Webserver.git
 cd JumpBox-Vulnerable-Webserver
 chmod +x setup.sh
 ./setup.sh
-
+```
 ---
 
 ## Application Components & Screenshots

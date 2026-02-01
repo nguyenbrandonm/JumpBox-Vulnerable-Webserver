@@ -42,6 +42,8 @@ To use the project:
 
 ```bash
 sudo -i
+```
+```bash
 git clone https://github.com/nguyenbrandonm/JumpBox-Vulnerable-Webserver.git
 cd JumpBox-Vulnerable-Webserver
 chmod +x setup.sh

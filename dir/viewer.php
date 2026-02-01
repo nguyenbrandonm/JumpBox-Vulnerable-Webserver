@@ -1,14 +1,38 @@
-# Viewer.php page (Directory Traversal)
 <?php
 session_start();
-$currentPage = basename($_SERVER['PHP_SELF']);
+
+/**
+ * File location: /dir/viewer.php
+ *
+ * This viewer is intended to be vulnerable to directory traversal in "vuln" mode.
+ * For a safe comparison, you can switch to: ?mode=safe
+ *
+ * Examples:
+ *  - /dir/viewer.php?file=notes.txt
+ *  - /dir/viewer.php?file=../../../../etc/passwd&mode=vuln
+ */
+
+$requestPath = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?? '/';
+$path = '/' . trim($requestPath, '/');
+
+function is_active(string $section, string $path): bool {
+    if ($section === 'dashboard') {
+        return $path === '/' || $path === '';
+    }
+    return str_starts_with($path . '/', '/' . $section . '/');
+}
 
 $currentFile = $_GET['file'] ?? '';
+$mode = $_GET['mode'] ?? 'vuln'; // vuln | safe
 
-// Directory used by the endpoint
-$baseDir = '/var/www/html/files';
+/**
+ * Base directory for the "legit" files list.
+ * Your repo has /files at the root, so from /dir/viewer.php it's one level up.
+ * This avoids hard-coding /var/www/html and works under /var/www/jumpbox.
+ */
+$baseDir = realpath(__DIR__ . '/../files') ?: (__DIR__ . '/../files');
 
-// “Suggested” files displayed as clickable pills (still allows manual entry below)
+// “Suggested” files displayed as clickable pills
 $availableFiles = [
     'motivation.txt',
     'notes.txt',
@@ -17,17 +41,37 @@ $availableFiles = [
     'backup.txt'
 ];
 
-// Only render output if a file was requested
 $content = null;
 $error = null;
 
 if ($currentFile !== '') {
-    $filePath = realpath($baseDir . '/' . $currentFile);
 
-    if ($filePath && file_exists($filePath)) {
-        $content = file_get_contents($filePath);
+    if ($mode === 'safe') {
+        /**
+         * SAFE MODE:
+         * Only allow files that resolve INSIDE $baseDir.
+         */
+        $candidate = realpath($baseDir . '/' . $currentFile);
+
+        if ($candidate && str_starts_with($candidate, rtrim($baseDir, '/') . '/') && file_exists($candidate)) {
+            $content = file_get_contents($candidate);
+        } else {
+            $error = 'File not found or access denied.';
+        }
+
     } else {
-        $error = 'File not found or access denied.';
+        /**
+         * VULN MODE (Directory Traversal):
+         * - We still use realpath(), but we do NOT enforce that the resolved path stays under $baseDir.
+         * - That makes traversal possible if the file exists and permissions allow it.
+         */
+        $candidate = realpath($baseDir . '/' . $currentFile);
+
+        if ($candidate && file_exists($candidate)) {
+            $content = file_get_contents($candidate);
+        } else {
+            $error = 'File not found or access denied.';
+        }
     }
 }
 ?>
@@ -126,6 +170,27 @@ if ($currentFile !== '') {
         .panel-title {
             font-weight: bold;
             margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            border: 1px solid rgba(0,255,0,0.35);
+            border-radius: 999px;
+            padding: 4px 10px;
+            font-size: 0.85rem;
+            color: #7cff7c;
+        }
+
+        .badge.safe {
+            border-color: rgba(0,255,0,0.35);
+        }
+
+        .badge.vuln {
+            border-color: rgba(255,128,128,0.5);
+            color: #ff8080;
         }
 
         .file-list {
@@ -234,10 +299,10 @@ if ($currentFile !== '') {
 </header>
 
 <nav class="nav">
-    <a href="index.php"  class="<?= $currentPage === 'index.php'  ? 'active' : '' ?>">Dashboard</a>
-    <a href="upload.php" class="<?= $currentPage === 'upload.php' ? 'active' : '' ?>">Upload</a>
-    <a href="viewer.php" class="<?= $currentPage === 'viewer.php' ? 'active' : '' ?>">Viewer</a>
-    <a href="ping.php"   class="<?= $currentPage === 'ping.php'   ? 'active' : '' ?>">Ping</a>
+    <a href="/" class="<?= is_active('dashboard', $path) ? 'active' : '' ?>">Dashboard</a>
+    <a href="/uploads/" class="<?= is_active('uploads', $path) ? 'active' : '' ?>">Upload</a>
+    <a href="/dir/" class="<?= is_active('dir', $path) ? 'active' : '' ?>">Viewer</a>
+    <a href="/ping/" class="<?= is_active('ping', $path) ? 'active' : '' ?>">Ping</a>
 </nav>
 
 <div class="container">
@@ -245,18 +310,25 @@ if ($currentFile !== '') {
     <div class="subtext">Select a file below or enter a filename manually.</div>
 
     <div class="panel">
-        <div class="panel-title">Available Files</div>
+        <div class="panel-title">
+            <span>Available Files</span>
+            <?php if ($mode === 'safe'): ?>
+                <span class="badge safe">mode: safe</span>
+            <?php else: ?>
+                <span class="badge vuln">mode: vuln</span>
+            <?php endif; ?>
+        </div>
 
         <div class="file-list">
             <?php foreach ($availableFiles as $f): ?>
                 <a class="file-pill <?= ($currentFile === $f ? 'active' : '') ?>"
-                   href="?file=<?= urlencode($f) ?>">
+                   href="/dir/viewer.php?file=<?= urlencode($f) ?>&mode=<?= urlencode($mode) ?>">
                     <?= htmlspecialchars($f) ?>
                 </a>
             <?php endforeach; ?>
         </div>
 
-        <form method="GET" action="" class="form-group">
+        <form method="GET" action="/dir/viewer.php" class="form-group">
             <input
                 type="text"
                 name="file"
@@ -264,8 +336,15 @@ if ($currentFile !== '') {
                 value="<?= htmlspecialchars($currentFile) ?>"
                 required
             />
+            <input type="hidden" name="mode" value="<?= htmlspecialchars($mode) ?>" />
             <button type="submit">View</button>
         </form>
+
+        <?php if ($mode !== 'safe'): ?>
+            <div class="subtext" style="margin-top: 16px;">
+                Lab hint: switch to <code>?mode=safe</code> for the hardened variant.
+            </div>
+        <?php endif; ?>
     </div>
 
     <?php if ($currentFile !== ''): ?>

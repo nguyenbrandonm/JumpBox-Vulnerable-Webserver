@@ -1,9 +1,31 @@
-# Viewer.php page (Command Injection)
 <?php
 session_start();
-$currentPage = basename($_SERVER['PHP_SELF']);
+
+/**
+ * File location: /ping/ping.php
+ *
+ * UI route: /ping/ (landing page we can add next)
+ * Vulnerable endpoint: /ping/ping.php
+ *
+ * By default this runs in SAFE mode.
+ * To intentionally enable command injection for the lab:
+ *   - set ?mode=vuln in the URL
+ * Example:
+ *   /ping/ping.php?host=8.8.8.8&mode=vuln
+ */
+
+$requestPath = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?? '/';
+$path = '/' . trim($requestPath, '/');
+
+function is_active(string $section, string $path): bool {
+    if ($section === 'dashboard') {
+        return $path === '/' || $path === '';
+    }
+    return str_starts_with($path . '/', '/' . $section . '/');
+}
 
 $host = $_GET['host'] ?? '';
+$mode = $_GET['mode'] ?? 'safe'; // safe | vuln
 $output = '';
 $error = '';
 
@@ -11,7 +33,6 @@ $error = '';
  * SAFE implementation:
  * - validates host roughly (IP or hostname)
  * - escapes shell argument
- * If you intentionally want this to be vulnerable in a lab, you'd remove escaping/validation.
  */
 function is_valid_host(string $h): bool {
     $h = trim($h);
@@ -25,13 +46,28 @@ function is_valid_host(string $h): bool {
 }
 
 if ($host !== '') {
-    if (!is_valid_host($host)) {
-        $error = "Invalid host. Enter an IPv4 address or a hostname (e.g., 8.8.8.8 or example.com).";
-    } else {
-        $cmd = "ping -c 4 " . escapeshellarg($host) . " 2>&1";
+    if ($mode === 'vuln') {
+        /**
+         * INTENTIONALLY VULNERABLE (Command Injection)
+         * No escaping, no validation.
+         */
+        $cmd = "ping -c 4 " . $host . " 2>&1";
         $output = shell_exec($cmd) ?? '';
         if (trim($output) === '') {
             $error = "No output returned.";
+        }
+    } else {
+        /**
+         * SAFE MODE
+         */
+        if (!is_valid_host($host)) {
+            $error = "Invalid host. Enter an IPv4 address or a hostname (e.g., 8.8.8.8 or example.com).";
+        } else {
+            $cmd = "ping -c 4 " . escapeshellarg($host) . " 2>&1";
+            $output = shell_exec($cmd) ?? '';
+            if (trim($output) === '') {
+                $error = "No output returned.";
+            }
         }
     }
 }
@@ -128,6 +164,23 @@ if ($host !== '') {
         .panel-title {
             font-weight: bold;
             margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            border: 1px solid rgba(0,255,0,0.35);
+            border-radius: 999px;
+            padding: 4px 10px;
+            font-size: 0.85rem;
+            color: #7cff7c;
+        }
+
+        .badge.vuln {
+            border-color: rgba(255,128,128,0.5);
+            color: #ff8080;
         }
 
         .form-row {
@@ -230,10 +283,10 @@ if ($host !== '') {
 </header>
 
 <nav class="nav">
-    <a href="index.php"  class="<?= $currentPage === 'index.php'  ? 'active' : '' ?>">Dashboard</a>
-    <a href="upload.php" class="<?= $currentPage === 'upload.php' ? 'active' : '' ?>">Upload</a>
-    <a href="viewer.php" class="<?= $currentPage === 'viewer.php' ? 'active' : '' ?>">Viewer</a>
-    <a href="ping.php"   class="<?= $currentPage === 'ping.php'   ? 'active' : '' ?>">Ping</a>
+    <a href="/" class="<?= is_active('dashboard', $path) ? 'active' : '' ?>">Dashboard</a>
+    <a href="/uploads/" class="<?= is_active('uploads', $path) ? 'active' : '' ?>">Upload</a>
+    <a href="/dir/" class="<?= is_active('dir', $path) ? 'active' : '' ?>">Viewer</a>
+    <a href="/ping/" class="<?= is_active('ping', $path) ? 'active' : '' ?>">Ping</a>
 </nav>
 
 <div class="container">
@@ -241,19 +294,34 @@ if ($host !== '') {
     <div class="subtext">Enter a domain or IPv4 address to test connectivity.</div>
 
     <div class="panel">
-        <div class="panel-title">Ping Console</div>
+        <div class="panel-title">
+            <span>Ping Console</span>
+            <?php if ($mode === 'vuln'): ?>
+                <span class="badge vuln">mode: vuln</span>
+            <?php else: ?>
+                <span class="badge">mode: safe</span>
+            <?php endif; ?>
+        </div>
 
-        <form method="GET" action="ping.php">
+        <form method="GET" action="/ping/ping.php">
             <div class="form-row">
                 <label for="host">Server IP/Domain:</label>
                 <input type="text" name="host" id="host" placeholder="e.g., 8.8.8.8 or example.com"
                        value="<?= htmlspecialchars($host) ?>" required>
+
+                <!-- keep mode sticky -->
+                <input type="hidden" name="mode" value="<?= htmlspecialchars($mode) ?>">
+
                 <button type="submit">Ping</button>
             </div>
 
             <div class="hintbar">
                 <div class="hint">Examples: <code>8.8.8.8</code>, <code>1.1.1.1</code>, <code>example.com</code></div>
                 <div class="hint">Tip: keep this lab isolated.</div>
+
+                <?php if ($mode !== 'vuln'): ?>
+                    <div class="hint">Lab: add <code>&amp;mode=vuln</code> for the vulnerable variant.</div>
+                <?php endif; ?>
             </div>
         </form>
     </div>

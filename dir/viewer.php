@@ -15,24 +15,30 @@ session_start();
 $requestPath = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?? '/';
 $path = '/' . trim($requestPath, '/');
 
+/* -------- PHP 7 SAFE HELPERS -------- */
+function starts_with(string $haystack, string $needle): bool {
+    return $needle === '' || strncmp($haystack, $needle, strlen($needle)) === 0;
+}
+
 function is_active(string $section, string $path): bool {
     if ($section === 'dashboard') {
         return $path === '/' || $path === '';
     }
-    return str_starts_with($path . '/', '/' . $section . '/');
+    return starts_with($path . '/', '/' . $section . '/');
 }
 
+/* -------- INPUTS -------- */
 $currentFile = $_GET['file'] ?? '';
 $mode = $_GET['mode'] ?? 'vuln'; // vuln | safe
 
 /**
  * Base directory for the "legit" files list.
- * Your repo has /files at the root, so from /dir/viewer.php it's one level up.
- * This avoids hard-coding /var/www/html and works under /var/www/jumpbox.
+ * Repo layout: /files at the root, so from /dir/viewer.php it's one level up.
+ * Works under /var/www/jumpbox without hard-coding /var/www/html.
  */
 $baseDir = realpath(__DIR__ . '/../files') ?: (__DIR__ . '/../files');
 
-// “Suggested” files displayed as clickable pills
+/* Suggested files shown as pills */
 $availableFiles = [
     'motivation.txt',
     'notes.txt',
@@ -52,8 +58,9 @@ if ($currentFile !== '') {
          * Only allow files that resolve INSIDE $baseDir.
          */
         $candidate = realpath($baseDir . '/' . $currentFile);
+        $basePrefix = rtrim($baseDir, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
 
-        if ($candidate && str_starts_with($candidate, rtrim($baseDir, '/') . '/') && file_exists($candidate)) {
+        if ($candidate && starts_with($candidate, $basePrefix) && file_exists($candidate)) {
             $content = file_get_contents($candidate);
         } else {
             $error = 'File not found or access denied.';
@@ -62,8 +69,8 @@ if ($currentFile !== '') {
     } else {
         /**
          * VULN MODE (Directory Traversal):
-         * - We still use realpath(), but we do NOT enforce that the resolved path stays under $baseDir.
-         * - That makes traversal possible if the file exists and permissions allow it.
+         * - Do NOT enforce that the resolved path stays under $baseDir.
+         * - Traversal is possible if the file exists and perms allow it.
          */
         $candidate = realpath($baseDir . '/' . $currentFile);
 
@@ -75,7 +82,6 @@ if ($currentFile !== '') {
     }
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -120,13 +126,9 @@ if ($currentFile !== '') {
             transition: background 0.2s;
         }
 
-        .nav a:last-child {
-            border-right: none;
-        }
+        .nav a:last-child { border-right: none; }
 
-        .nav a:hover {
-            background-color: #1e1e1e;
-        }
+        .nav a:hover { background-color: #1e1e1e; }
 
         .nav a.active {
             background-color: #00ff00;
@@ -182,10 +184,6 @@ if ($currentFile !== '') {
             padding: 4px 10px;
             font-size: 0.85rem;
             color: #7cff7c;
-        }
-
-        .badge.safe {
-            border-color: rgba(0,255,0,0.35);
         }
 
         .badge.vuln {
@@ -252,9 +250,7 @@ if ($currentFile !== '') {
             cursor: pointer;
         }
 
-        button:hover {
-            background-color: #00cc00;
-        }
+        button:hover { background-color: #00cc00; }
 
         .output {
             background-color: #1e1e1e;
@@ -294,15 +290,17 @@ if ($currentFile !== '') {
 </head>
 
 <body>
-<header>
-    JumpBox – File Viewer
-</header>
+<header>JumpBox – File Viewer</header>
 
 <nav class="nav">
     <a href="/" class="<?= is_active('dashboard', $path) ? 'active' : '' ?>">Dashboard</a>
-    <a href="/uploads/" class="<?= is_active('uploads', $path) ? 'active' : '' ?>">Upload</a>
-    <a href="/dir/" class="<?= is_active('dir', $path) ? 'active' : '' ?>">Viewer</a>
-    <a href="/ping/" class="<?= is_active('ping', $path) ? 'active' : '' ?>">Ping</a>
+    <a href="/uploads/uploads.php" class="<?= is_active('uploads', $path) ? 'active' : '' ?>">Upload</a>
+
+    <!-- Keep mode sticky on Viewer tab -->
+    <a href="/dir/viewer.php<?= $mode === 'safe' ? '?mode=safe' : '' ?>"
+       class="<?= is_active('dir', $path) ? 'active' : '' ?>">Viewer</a>
+
+    <a href="/ping/ping.php" class="<?= is_active('ping', $path) ? 'active' : '' ?>">Ping</a>
 </nav>
 
 <div class="container">
@@ -313,7 +311,7 @@ if ($currentFile !== '') {
         <div class="panel-title">
             <span>Available Files</span>
             <?php if ($mode === 'safe'): ?>
-                <span class="badge safe">mode: safe</span>
+                <span class="badge">mode: safe</span>
             <?php else: ?>
                 <span class="badge vuln">mode: vuln</span>
             <?php endif; ?>
@@ -358,9 +356,7 @@ if ($currentFile !== '') {
     <?php endif; ?>
 </div>
 
-<footer>
-    &copy; 2026 JumpBox Lab | All Rights Reserved
-</footer>
+<footer>&copy; 2026 JumpBox Lab | All Rights Reserved</footer>
 
 </body>
 </html>

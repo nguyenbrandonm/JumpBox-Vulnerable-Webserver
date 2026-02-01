@@ -4,7 +4,6 @@ session_start();
 /**
  * File location: /ping/ping.php
  *
- * UI route: /ping/ (landing page we can add next)
  * Vulnerable endpoint: /ping/ping.php
  *
  * By default this runs in SAFE mode.
@@ -17,13 +16,19 @@ session_start();
 $requestPath = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?? '/';
 $path = '/' . trim($requestPath, '/');
 
+/* -------- PHP 7 SAFE HELPERS -------- */
+function starts_with(string $haystack, string $needle): bool {
+    return $needle === '' || strncmp($haystack, $needle, strlen($needle)) === 0;
+}
+
 function is_active(string $section, string $path): bool {
     if ($section === 'dashboard') {
         return $path === '/' || $path === '';
     }
-    return str_starts_with($path . '/', '/' . $section . '/');
+    return starts_with($path . '/', '/' . $section . '/');
 }
 
+/* -------- INPUTS -------- */
 $host = $_GET['host'] ?? '';
 $mode = $_GET['mode'] ?? 'safe'; // safe | vuln
 $output = '';
@@ -45,6 +50,7 @@ function is_valid_host(string $h): bool {
     return (bool)preg_match('/^(?=.{1,253}$)([a-zA-Z0-9-]{1,63}\.)*[a-zA-Z0-9-]{1,63}$/', $h);
 }
 
+/* -------- EXECUTION -------- */
 if ($host !== '') {
     if ($mode === 'vuln') {
         /**
@@ -72,7 +78,6 @@ if ($host !== '') {
     }
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -99,7 +104,7 @@ if ($host !== '') {
             border-bottom: 2px solid #00ff00;
         }
 
-        /* === NAV TABS (same as index/viewer) === */
+        /* === NAV TABS === */
         .nav {
             display: flex;
             justify-content: center;
@@ -118,7 +123,6 @@ if ($host !== '') {
         }
 
         .nav a:last-child { border-right: none; }
-
         .nav a:hover { background-color: #1e1e1e; }
 
         .nav a.active {
@@ -220,9 +224,7 @@ if ($host !== '') {
             white-space: nowrap;
         }
 
-        button:hover {
-            background-color: #00cc00;
-        }
+        button:hover { background-color: #00cc00; }
 
         /* === OUTPUT === */
         .output {
@@ -259,9 +261,7 @@ if ($host !== '') {
             color: #7cff7c;
         }
 
-        .error {
-            color: #ff8080;
-        }
+        .error { color: #ff8080; }
 
         footer {
             background-color: #1a1a1a;
@@ -278,15 +278,16 @@ if ($host !== '') {
 </head>
 
 <body>
-<header>
-    Network Ping Utility
-</header>
+<header>Network Ping Utility</header>
 
 <nav class="nav">
     <a href="/" class="<?= is_active('dashboard', $path) ? 'active' : '' ?>">Dashboard</a>
-    <a href="/uploads/" class="<?= is_active('uploads', $path) ? 'active' : '' ?>">Upload</a>
-    <a href="/dir/" class="<?= is_active('dir', $path) ? 'active' : '' ?>">Viewer</a>
-    <a href="/ping/" class="<?= is_active('ping', $path) ? 'active' : '' ?>">Ping</a>
+    <a href="/uploads/uploads.php" class="<?= is_active('uploads', $path) ? 'active' : '' ?>">Upload</a>
+    <a href="/dir/viewer.php" class="<?= is_active('dir', $path) ? 'active' : '' ?>">Viewer</a>
+
+    <!-- Keep mode sticky on the Ping tab -->
+    <a href="/ping/ping.php<?= $mode === 'vuln' ? '?mode=vuln' : '' ?>"
+       class="<?= is_active('ping', $path) ? 'active' : '' ?>">Ping</a>
 </nav>
 
 <div class="container">
@@ -306,7 +307,9 @@ if ($host !== '') {
         <form method="GET" action="/ping/ping.php">
             <div class="form-row">
                 <label for="host">Server IP/Domain:</label>
-                <input type="text" name="host" id="host" placeholder="e.g., 8.8.8.8 or example.com"
+
+                <input type="text" name="host" id="host"
+                       placeholder="e.g., 8.8.8.8 or example.com"
                        value="<?= htmlspecialchars($host) ?>" required>
 
                 <!-- keep mode sticky -->
@@ -321,6 +324,8 @@ if ($host !== '') {
 
                 <?php if ($mode !== 'vuln'): ?>
                     <div class="hint">Lab: add <code>&amp;mode=vuln</code> for the vulnerable variant.</div>
+                <?php else: ?>
+                    <div class="hint">Vulnerable mode enabled.</div>
                 <?php endif; ?>
             </div>
         </form>

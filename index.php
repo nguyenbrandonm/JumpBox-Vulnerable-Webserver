@@ -1,7 +1,22 @@
-# Home rendering page
 <?php
 session_start();
-$currentPage = basename($_SERVER['PHP_SELF']);
+$requestPath = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?? '/';
+$path = '/' . trim($requestPath, '/'); // normalize
+
+function is_active(string $section, string $path): bool {
+    if ($section === 'dashboard') {
+        return $path === '/' || $path === '';
+    }
+    // Match first path segment
+    return str_starts_with($path . '/', '/' . $section . '/');
+}
+
+$nav = [
+    'dashboard' => ['label' => 'Dashboard', 'href' => '/'],
+    'uploads'   => ['label' => 'Upload',    'href' => '/uploads/'],
+    'dir'       => ['label' => 'Viewer',    'href' => '/dir/'],
+    'ping'      => ['label' => 'Ping',      'href' => '/ping/'],
+];
 ?>
 
 <!DOCTYPE html>
@@ -141,155 +156,3 @@ $currentPage = basename($_SERVER['PHP_SELF']);
         }
 
         @keyframes blink {
-            50% { opacity: 0; }
-        }
-
-        .info-text {
-            font-size: 0.95rem;
-            margin-top: 20px;
-            color: #888;
-        }
-
-        footer {
-            background-color: #1a1a1a;
-            color: #00ff00;
-            text-align: center;
-            padding: 12px;
-            font-size: 0.8rem;
-            width: 100%;
-            position: fixed;
-            bottom: 0;
-            left: 0;
-        }
-
-        .hidden-content {
-            display: none;
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-    </style>
-</head>
-
-<body>
-
-<header>
-    JUMPBOX CONTROL PANEL
-</header>
-
-<nav class="nav">
-    <a href="index.php" class="<?= $currentPage === 'index.php' ? 'active' : '' ?>">Dashboard</a>
-    <a href="upload.php" class="<?= $currentPage === 'upload.php' ? 'active' : '' ?>">Upload</a>
-    <a href="viewer.php" class="<?= $currentPage === 'viewer.php' ? 'active' : '' ?>">Viewer</a>
-    <a href="ping.php" class="<?= $currentPage === 'ping.php' ? 'active' : '' ?>">Ping</a>
-</nav>
-
-<div class="container">
-    <h2>Welcome to the JumpBox Interface</h2>
-
-    <img src="/assets/JumpBox.png" alt="JumpBox Hacker Interface" class="hacker-image">
-
-    <button class="button" onclick="revealTerminal()">Enter Command Mode</button>
-
-    <div class="hidden-content" id="terminalContainer">
-        <div class="terminal" id="terminal">
-            <div>Welcome to the JumpBox Terminal</div>
-            <div>Type <code>help</code> for available commands.</div>
-            <div class="blinking-cursor">_</div>
-        </div>
-        <input type="text" id="commandInput" placeholder="Type a command..." onkeydown="handleCommand(event)">
-    </div>
-
-    <div class="info-text">
-        For educational purposes only. Do not attempt to hack real systems.
-    </div>
-</div>
-
-<footer>
-    &copy; 2026 JumpBox Lab | All Rights Reserved
-</footer>
-
-<script>
-function revealTerminal() {
-    document.getElementById('terminalContainer').style.display = 'flex';
-    document.querySelector('.button').style.display = 'none';
-}
-
-function handleCommand(event) {
-    if (event.key === 'Enter') {
-        processCommand(event.target.value.trim());
-        event.target.value = '';
-    }
-}
-
-function processCommand(command) {
-    const terminal = document.getElementById('terminal');
-    const cmd = command.toLowerCase();
-
-    terminal.innerHTML += `<div>&gt; ${command}</div>`;
-
-    switch (cmd) {
-        case 'help':
-            terminal.innerHTML += `
-                <div>Available commands:</div>
-                <div>- upload     → Go to upload interface</div>
-                <div>- download   → View exposed files</div>
-                <div>- ping       → Network utility</div>
-                <div>- matrix     → ???</div>
-            `;
-            break;
-
-        case 'upload':
-            window.location.href = 'upload.php';
-            return;
-
-        case 'download':
-            window.location.href = 'download.php';
-            return;
-
-        case 'ping':
-            window.location.href = 'ping.php';
-            return;
-
-        case 'matrix':
-            runMatrixEffect(terminal);
-            return;
-
-        default:
-            terminal.innerHTML += `<div>Command not found. Type <code>help</code>.</div>`;
-    }
-
-    terminal.scrollTop = terminal.scrollHeight;
-    terminal.innerHTML += `<div class="blinking-cursor">_</div>`;
-}
-
-/* === FUN EASTER EGG === */
-function runMatrixEffect(terminal) {
-    const lines = [
-        "[+] Initializing JumpBox Subsystem...",
-        "[+] Loading neural interface modules...",
-        "[+] Bypassing reality constraints...",
-        "[!] WARNING: This is not the real world",
-        "[+] Injecting green text illusion...",
-        "[+] System status: YOU ARE NOT ROOT",
-        "[+] Just kidding. Or am I?",
-        "[✓] Matrix mode disengaged."
-    ];
-
-    let i = 0;
-    const interval = setInterval(() => {
-        if (i < lines.length) {
-            terminal.innerHTML += `<div>${lines[i]}</div>`;
-            terminal.scrollTop = terminal.scrollHeight;
-            i++;
-        } else {
-            clearInterval(interval);
-            terminal.innerHTML += `<div class="blinking-cursor">_</div>`;
-        }
-    }, 350);
-}
-</script>
-
-</body>
-</html>

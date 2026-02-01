@@ -29,6 +29,26 @@ Once compromised, the server represents an attacker-controlled **jump box** with
 
 ---
 
+
+## Repository Usage
+
+This repository contains **only the web application files**.  
+It assumes:
+
+- Ubuntu is already installed
+- The user understands basic Linux web server administration
+
+To use the project:
+
+```bash
+sudo -i
+git clone https://github.com/nguyenbrandonm/JumpBox-Vulnerable-Webserver.git
+cd JumpBox-Vulnerable-Webserver
+chmod +x setup.sh
+./setup.sh
+
+---
+
 ## Application Components & Screenshots
 
 The following screenshots illustrate each major component of the JumpBox application.
@@ -63,18 +83,3 @@ An insecure file viewing interface that exposes sensitive files and allows **dir
 A network diagnostic endpoint vulnerable to **command injection**, allowing user input to be passed directly to a system command.
 
 ![Ping Utility](assets/screenshots/Ping.png)
-
----
-
-## Repository Usage
-
-This repository contains **only the web application files**.  
-It assumes:
-
-- Ubuntu is already installed
-- The user understands basic Linux web server administration
-
-To use the project:
-
-```bash
-

@@ -1,22 +1,42 @@
 <?php
 session_start();
 
+/**
+ * File location: /uploads/uploads.php
+ *
+ * Stores uploads in: /uploads/uploads/   (recommended)
+ * Served at URL:     /uploads/uploads/<filename>
+ *
+ * This keeps your PHP file separate from the uploaded payloads.
+ */
+
 $requestPath = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?? '/';
 $path = '/' . trim($requestPath, '/');
+
+/* -------- PHP 7 SAFE HELPERS -------- */
+function starts_with(string $haystack, string $needle): bool {
+    return $needle === '' || strncmp($haystack, $needle, strlen($needle)) === 0;
+}
 
 function is_active(string $section, string $path): bool {
     if ($section === 'dashboard') {
         return $path === '/' || $path === '';
     }
-    return str_starts_with($path . '/', '/' . $section . '/');
+    return starts_with($path . '/', '/' . $section . '/');
 }
 
-// Upload storage directory (filesystem path)
-// This stores uploaded files directly in the /uploads folder (same folder as this script).
-$uploadDirFs = __DIR__ . '/';
-$uploadDirUrl = '/uploads/';
+/* -------- UPLOAD PATHS --------
+   Keep uploaded files in a dedicated subfolder so your endpoint script isn't polluted.
+*/
+$uploadDirFs  = __DIR__ . '/uploads/';         // filesystem
+$uploadDirUrl = '/uploads/uploads/';           // URL
 
 $message = null;
+
+/* Ensure upload directory exists (lab-friendly) */
+if (!is_dir($uploadDirFs)) {
+    @mkdir($uploadDirFs, 0775, true);
+}
 
 if (isset($_POST['submit'])) {
     if (!isset($_FILES['fileToUpload']) || $_FILES['fileToUpload']['error'] !== UPLOAD_ERR_OK) {
@@ -31,8 +51,7 @@ if (isset($_POST['submit'])) {
         } else {
             // Intentionally insecure: no filetype validation.
             if (move_uploaded_file($_FILES["fileToUpload"]["tmp_name"], $targetFs)) {
-                // Helpful output for the lab (shows where it landed)
-                $message = "File uploaded successfully: " . htmlspecialchars($uploadDirUrl . $filename);
+                $message = "File uploaded successfully: " . $uploadDirUrl . $filename;
             } else {
                 $message = "Error uploading file.";
             }
@@ -40,7 +59,6 @@ if (isset($_POST['submit'])) {
     }
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -182,9 +200,9 @@ if (isset($_POST['submit'])) {
 
 <nav class="nav">
     <a href="/" class="<?= is_active('dashboard', $path) ? 'active' : '' ?>">Dashboard</a>
-    <a href="/uploads/" class="<?= is_active('uploads', $path) ? 'active' : '' ?>">Upload</a>
-    <a href="/dir/" class="<?= is_active('dir', $path) ? 'active' : '' ?>">Files</a>
-    <a href="/ping/" class="<?= is_active('ping', $path) ? 'active' : '' ?>">Ping</a>
+    <a href="/uploads/uploads.php" class="<?= is_active('uploads', $path) ? 'active' : '' ?>">Upload</a>
+    <a href="/dir/viewer.php" class="<?= is_active('dir', $path) ? 'active' : '' ?>">Viewer</a>
+    <a href="/ping/ping.php" class="<?= is_active('ping', $path) ? 'active' : '' ?>">Ping</a>
 </nav>
 
 <div class="container">
@@ -203,9 +221,7 @@ if (isset($_POST['submit'])) {
     <?php endif; ?>
 </div>
 
-<footer>
-    &copy; 2026 JumpBox Lab | All Rights Reserved
-</footer>
+<footer>&copy; 2026 JumpBox Lab | All Rights Reserved</footer>
 
 </body>
 </html>
